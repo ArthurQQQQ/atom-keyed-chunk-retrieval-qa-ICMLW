@@ -1,0 +1,68 @@
+\begin{thebibliography}{12}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Chen et~al.(2024)Chen, Xiao, Zhang, Luo, Lian, and Liu]{xiao2023bgem3}
+Chen, J., Xiao, S., Zhang, P., Luo, K., Lian, D., and Liu, Z.
+\newblock {BGE M3-Embedding}: Multi-lingual, multi-functionality, multi-granularity text embeddings through self-knowledge distillation.
+\newblock \emph{arXiv preprint arXiv:2402.03216}, 2024.
+
+\bibitem[Choi et~al.(2021)Choi, Palomaki, Lamm, Kwiatkowski, Das, and Collins]{choi2021decontext}
+Choi, E., Palomaki, J., Lamm, M., Kwiatkowski, T., Das, D., and Collins, M.
+\newblock Decontextualization: Making sentences stand-alone.
+\newblock \emph{Transactions of the Association for Computational Linguistics (TACL)}, 9:\penalty0 447--461, 2021.
+
+\bibitem[Davidson(1967)]{davidson1967logical}
+Davidson, D.
+\newblock The logical form of action sentences.
+\newblock In Rescher, N. (ed.), \emph{The Logic of Decision and Action}. University of Pittsburgh Press, 1967.
+
+\bibitem[Edge et~al.(2024)Edge, Trinh, Cheng, Bradley, Chao, Mody, Truitt, and Larson]{edge2024graphrag}
+Edge, D., Trinh, H., Cheng, N., Bradley, J., Chao, A., Mody, A., Truitt, S., and Larson, J.
+\newblock From local to global: A {GraphRAG} approach to query-focused summarization.
+\newblock \emph{arXiv preprint arXiv:2404.16130}, 2024.
+
+\bibitem[Guti{\'e}rrez et~al.(2024)Guti{\'e}rrez, Shu, Gu, Yasunaga, and Su]{gutierrez2024hipporag}
+Guti{\'e}rrez, B.~J., Shu, Y., Gu, Y., Yasunaga, M., and Su, Y.
+\newblock {HippoRAG}: Neurobiologically inspired long-term memory for large language models.
+\newblock \emph{Advances in Neural Information Processing Systems (NeurIPS)}, 2024.
+
+\bibitem[Karpukhin et~al.(2020)Karpukhin, O{\u{g}}uz, Min, Lewis, Wu, Edunov, Chen, and Yih]{karpukhin2020dpr}
+Karpukhin, V., O{\u{g}}uz, B., Min, S., Lewis, P., Wu, L., Edunov, S., Chen, D., and Yih, W.-t.
+\newblock Dense passage retrieval for open-domain question answering.
+\newblock In \emph{Empirical Methods in Natural Language Processing (EMNLP)}, 2020.
+
+\bibitem[Klicpera et~al.(2019)Klicpera, Bojchevski, and G{\"u}nnemann]{klein2024appnp}
+Klicpera, J., Bojchevski, A., and G{\"u}nnemann, S.
+\newblock Predict then propagate: Graph neural networks meet personalized {PageRank}.
+\newblock In \emph{International Conference on Learning Representations (ICLR)}, 2019.
+
+\bibitem[Ko{\v{c}}isk{\'y} et~al.(2018)Ko{\v{c}}isk{\'y}, Schwarz, Blunsom, Dyer, Hermann, Melis, and Grefenstette]{kovcisky2018narrativeqa}
+Ko{\v{c}}isk{\'y}, T., Schwarz, J., Blunsom, P., Dyer, C., Hermann, K.~M., Melis, G., and Grefenstette, E.
+\newblock The {NarrativeQA} reading comprehension challenge.
+\newblock \emph{Transactions of the Association for Computational Linguistics (TACL)}, 6:\penalty0 317--328, 2018.
+
+\bibitem[Liu et~al.(2024)Liu, Lin, Hewitt, Paranjape, Bevilacqua, Petroni, and Liang]{liu2024lostinmiddle}
+Liu, N.~F., Lin, K., Hewitt, J., Paranjape, A., Bevilacqua, M., Petroni, F., and Liang, P.
+\newblock Lost in the middle: How language models use long contexts.
+\newblock \emph{Transactions of the Association for Computational Linguistics (TACL)}, 12:\penalty0 157--173, 2024.
+
+\bibitem[Reimers \& Gurevych(2019)Reimers and Gurevych]{reimers2019sentencebert}
+Reimers, N. and Gurevych, I.
+\newblock {Sentence-BERT}: Sentence embeddings using {Siamese BERT}-networks.
+\newblock In \emph{Empirical Methods in Natural Language Processing (EMNLP)}, 2019.
+
+\bibitem[Santhanam et~al.(2022)Santhanam, Khattab, Saad-Falcon, Potts, and Zaharia]{khattab2022colbertv2}
+Santhanam, K., Khattab, O., Saad-Falcon, J., Potts, C., and Zaharia, M.
+\newblock {ColBERTv2}: Effective and efficient retrieval via lightweight late interaction.
+\newblock \emph{Proceedings of the North American Chapter of the Association for Computational Linguistics (NAACL)}, 2022.
+
+\bibitem[Sarthi et~al.(2024)Sarthi, Abdullah, Tuli, Khanna, Goldie, and Manning]{sarthi2024raptor}
+Sarthi, P., Abdullah, S., Tuli, A., Khanna, S., Goldie, A., and Manning, C.~D.
+\newblock {RAPTOR}: Recursive abstractive processing for tree-organized retrieval.
+\newblock In \emph{International Conference on Learning Representations (ICLR)}, 2024.
+
+\end{thebibliography}

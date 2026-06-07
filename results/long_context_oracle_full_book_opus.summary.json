@@ -1,0 +1,12 @@
+{
+  "method": "long_context_oracle_full_book",
+  "model": "claude-opus-4-7",
+  "judge_model": "glm-4.7",
+  "n_total": 149,
+  "n_yes": 124,
+  "judge_acc": 0.8322147651006712,
+  "avg_f1": 0.34515446475124073,
+  "tokens_total_reader": 3249670,
+  "tokens_total_judge": 12500,
+  "duration_sec": 15609.810524225235
+}

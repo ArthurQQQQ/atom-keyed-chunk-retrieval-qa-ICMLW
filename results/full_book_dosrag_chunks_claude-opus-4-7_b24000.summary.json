@@ -1,0 +1,14 @@
+{
+  "method": "DOS+chunks_reader-claude-opus-4-7",
+  "reader": "claude-opus-4-7",
+  "judge": "glm-4.7",
+  "char_budget": 24000,
+  "n_total": 1169,
+  "n_yes": 706,
+  "judge_acc": 0.6039349871685201,
+  "avg_f1": 0.2562707522783468,
+  "avg_facts_chars": 23876.202737382377,
+  "tokens_total_reader": 5507946,
+  "tokens_total_judge": 93173,
+  "duration_sec": 2178.2526071071625
+}

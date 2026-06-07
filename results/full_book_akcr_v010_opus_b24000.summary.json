@@ -1,0 +1,15 @@
+{
+  "method": "AKCR-reader_claude-opus-4-7",
+  "atom_source": "data/narrativeqa/processed_v010_full/nodes_v010_full_book.jsonl",
+  "reader": "claude-opus-4-7",
+  "judge": "glm-4.7",
+  "char_budget": 24000,
+  "K_atoms": 200,
+  "n_total": 1169,
+  "n_yes": 754,
+  "judge_acc": 0.6449957228400343,
+  "avg_f1": 0.2487420489978342,
+  "avg_passages_chars": 23224.345594525235,
+  "avg_n_chunks": 32.09067579127459,
+  "duration_sec": 2357.0999369621277
+}

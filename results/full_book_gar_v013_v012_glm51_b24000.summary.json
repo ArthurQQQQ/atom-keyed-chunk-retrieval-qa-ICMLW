@@ -1,0 +1,12 @@
+{
+  "method": "GAR-reader_glm-5.1",
+  "reader": "glm-5.1",
+  "judge": "glm-4.7",
+  "char_budget": 24000,
+  "n_total": 1169,
+  "n_yes": 537,
+  "judge_acc": 0.4593669803250642,
+  "avg_f1": 0.18117435085326064,
+  "avg_graph_chars": 24481.448246364413,
+  "duration_sec": 564.9902458190918
+}

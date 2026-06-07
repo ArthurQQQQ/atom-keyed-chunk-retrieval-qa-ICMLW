@@ -1,0 +1,18 @@
+{
+  "method": "AKCR_v2_hacs",
+  "method_args": {
+    "alpha": 0.7,
+    "tau": null,
+    "K_atoms": 200
+  },
+  "reader": "glm-5.1",
+  "judge": "glm-4.7",
+  "char_budget": 24000,
+  "n_total": 1169,
+  "n_yes": 634,
+  "judge_acc": 0.542343883661249,
+  "avg_f1": 0.20669093342455744,
+  "avg_passages_chars": 23872.02395209581,
+  "avg_n_chunks": 33.23609923011121,
+  "duration_sec": 263.6894850730896
+}

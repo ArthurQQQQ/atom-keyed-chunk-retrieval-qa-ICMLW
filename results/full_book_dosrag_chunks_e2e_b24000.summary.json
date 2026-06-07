@@ -1,0 +1,19 @@
+{
+  "method": "dos_rag",
+  "pools": [
+    "chunks"
+  ],
+  "K": 200,
+  "char_budget": 24000,
+  "reader": "glm-4.7",
+  "judge": "glm-4.7",
+  "n_total": 1169,
+  "n_yes": 611,
+  "judge_acc": 0.5226689478186484,
+  "avg_f1": 0.2686879915110077,
+  "avg_facts_chars": 23878.44653550043,
+  "avg_pool_count": {
+    "chunk": 33.44054747647562
+  },
+  "duration_sec": 388.93174409866333
+}

@@ -1,0 +1,18 @@
+{
+  "method": "AKCR_v2_mar_lse",
+  "method_args": {
+    "alpha": null,
+    "tau": 5.0,
+    "K_atoms": 200
+  },
+  "reader": "glm-5.1",
+  "judge": "glm-4.7",
+  "char_budget": 24000,
+  "n_total": 1169,
+  "n_yes": 626,
+  "judge_acc": 0.5355004277159966,
+  "avg_f1": 0.20536302795375214,
+  "avg_passages_chars": 23227.489307100084,
+  "avg_n_chunks": 32.05474764756202,
+  "duration_sec": 243.58526587486267
+}

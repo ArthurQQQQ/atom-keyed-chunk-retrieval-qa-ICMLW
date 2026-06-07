@@ -1,0 +1,12 @@
+{
+  "method": "long_context_oracle_full_book",
+  "model": "glm-4.7",
+  "judge_model": "glm-4.7",
+  "n_total": 1169,
+  "n_yes": 754,
+  "judge_acc": 0.6449957228400343,
+  "avg_f1": 0.268321318824649,
+  "tokens_total_reader": 25726299,
+  "tokens_total_judge": 93219,
+  "duration_sec": 382.74773716926575
+}

@@ -1,0 +1,582 @@
+%%%%%%%% ICML 2026 SUBMISSION -- LONG PAPER %%%%%%%%%%%%%%%%%%%%%
+%% Workshop: Graph Foundation Models (GFM) @ ICML 2026, Seoul, July 10
+%% Track: Long paper (up to 8 pages excluding refs/appendix)
+%% Format: Anonymous / double-blind
+
+\documentclass{article}
+
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{booktabs}
+\usepackage{hyperref}
+
+\newcommand{\theHalgorithm}{\arabic{algorithm}}
+
+% Anonymous blind-review version
+\usepackage{icml2026}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage{amsthm}
+\usepackage[capitalize,noabbrev]{cleveref}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{assumption}[theorem]{Assumption}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+\icmltitlerunning{Tokenization Beats Propagation: A Position on Graph--LLM Retrieval Interfaces}
+
+\begin{document}
+
+\twocolumn[
+  \icmltitle{Tokenization Beats Propagation:\\
+    A Position on Graph Foundation Models for LLM Retrieval Interfaces}
+
+  \icmlsetsymbol{equal}{*}
+
+  \begin{icmlauthorlist}
+    \icmlauthor{Anonymous Authors}{anon}
+  \end{icmlauthorlist}
+
+  \icmlaffiliation{anon}{Anonymous Institution}
+
+  \icmlcorrespondingauthor{Anonymous Authors}{anon@example.com}
+
+  \icmlkeywords{Graph Foundation Models, Retrieval-Augmented Generation, Long-Document QA,
+    Graph Tokenization, LLM Reasoning, Atomic Propositions}
+
+  \vskip 0.3in
+]
+
+\printAffiliationsAndNotice{}
+
+\begin{abstract}
+  We argue, in the context of single-document long-context QA, that the unit on
+  which a graph-to-LLM retriever \emph{ranks} and the unit it \emph{reads} from
+  benefit from being different objects, joined by a deterministic source-of
+  map. Concretely, we treat each chunk's atomic Davidsonian proposition as a
+  graph node; the source-of relation (atom $\to$ source chunk) as a deterministic
+  bipartite map to the reader payload; and entity-mentions, scene index, time
+  anchor, and edge-hints as edge-schema primitives. Our pipeline, Atom-Keyed
+  Chunk Retrieval (AKCR), ranks atoms by query cosine, maps top atoms back to
+  their source chunks, and feeds those chunks (not the atoms) to the reader.
+
+  We evaluate on full-book NarrativeQA (40 books, 1{,}169 questions). Our main
+  empirical claim is same-reader: at fixed retrieval budget $b\!=\!24$K chars,
+  AKCR closes a substantial fraction of the gap to the same-reader long-context
+  oracle, and outperforms a chunk-cosine retrieval baseline at the same budget,
+  though it does not exceed the same-reader oracle when the oracle is
+  reliable. With GLM-4.7 as reader, AKCR scores $0.5543$ vs.\ a $0.6450$
+  full-book oracle (gap $-9.07$pp). On the GLM-5.1 reader, the same-reader
+  comparison goes the other way ($+13.6$pp over the full-book oracle), but
+  we treat this as a diagnostic of long-context degradation in GLM-5.1 rather
+  than a retrieval-vs-context win. A scoring-rule ablation finds atom-best
+  max-pooling the strongest of the rules we tested; alternatives degrade or
+  tie within run-to-run noise. Two negative results constrain the position:
+  in our single-book candidate pool, a learned typed-edge propagator
+  (LearnRet) drives $\mathrm{ppr}_\alpha\!\to\!0.95$, effectively reducing to
+  the dense seed; and feeding atoms directly to the reader plateaus near
+  $0.46$ across four formats and two extractors.
+
+  As a deployment-style observation we report that AKCR with Claude Opus~4.7
+  at $b\!=\!24$K reaches $0.6721 \pm 0.007$ over three reruns, comparable to
+  the GLM-4.7 full-book oracle ($0.6450$); we are explicit that this is a
+  cross-reader comparison and not evidence that retrieval beats full context
+  under a matched reader. Run-to-run variance on LLM-judged accuracy is
+  non-trivial in this regime (an AKCR v1 GLM-5.1 four-run sample gave
+  $\mathrm{SD}\!\approx\!5$pp on $n\!=\!1169$); we report multi-run means
+  where available and treat sub-3pp single-run gaps as inconclusive. We do
+  not claim graph propagation is universally unhelpful; we suggest that, on
+  long single-document narrative QA, the choice of graph token is a useful
+  design lever to study before adding propagation.
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+
+The GFM call-for-papers calls out two themes that we address simultaneously:
+\textbf{graph learning with LLMs} (``GFMs that interface with language models
+and retrieval'') and \textbf{new GFMs} (``graph tokenization, structural and
+positional encodings''). We take a narrow but concrete position at their
+intersection: in single-document long-context QA, the unit a graph-to-LLM
+retriever \emph{ranks on} and the unit the reader \emph{reads from} should
+be different objects, joined by a deterministic source-of map.
+
+Standard RAG \citep{karpukhin2020dpr} treats a chunk -- a contiguous span of
+text -- as both retrieval unit and reader unit. Graph-augmented variants
+\citep{edge2024graphrag,gutierrez2024hipporag} layer typed entity/relation
+graphs on top of chunks and propagate via PageRank or learned GNNs. Both
+families collapse two roles into one object: a structured ranking key, and
+natural-language content the LLM composes from. Our position is that, at
+least for long single-document narrative QA, those two roles benefit from
+being represented as different units.
+
+\paragraph{Why this is a Graph Foundation Models problem.}
+We treat each chunk's set of atomic Davidsonian propositions
+\citep{davidson1967logical} as the local nodes of a per-document graph. Each
+atom carries an entity-mention list, a scene index, a time anchor, and a few
+edge-hint relations (entity overlap, shared subject, scene co-occurrence,
+inferred causal/temporal links). The source-of relation $\sigma:t\!\to\!c$
+that maps an atom $t$ back to its source chunk $c$ is a deterministic
+bipartite map between the graph layer and a language-payload layer. Most
+prior graph-to-LLM systems decide on a graph topology and a propagation
+operator first, and treat the choice of \emph{node} (chunk, entity, or
+proposition) as a downstream tokenizer detail. We invert that ordering: we
+fix a particular node choice (atomic propositions), make the bipartite
+$\sigma$ explicit, and ask whether a learned propagator over the typed atom
+graph adds anything once the dense atom seed already concentrates probability
+mass on the answer region. This recasts the design question for graph-to-LLM
+interfaces as ``what should the graph token be?'' before ``which propagator
+do we use?''
+
+We support this position with full-book NarrativeQA
+\citep{kovcisky2018narrativeqa} evidence (40 books, 1{,}169 questions). Our
+pipeline, AKCR (Atom-Keyed Chunk Retrieval), extracts $89{,}575$ atomic
+propositions over $4{,}929$ chunks via a 3-pass GLM-4.7 recipe and ranks
+atoms against the query in the \textsc{bge-m3} embedding space
+\citep{xiao2023bgem3}. Top atoms are mapped back to source chunks via
+$\sigma$ and the chunks are fed to the reader. Our main empirical claim is
+same-reader (\S\ref{sec:samereader}). With GLM-4.7 as both retrieval reader
+and oracle reader, HACS-AKCR at $b\!=\!24$K chars scores $0.5543$ versus a
+$0.6450$ full-book oracle (gap of $-9.07$pp). At the same budget, AKCR is
+above a DOS+chunks chunk-cosine baseline ($0.5227$) under the same reader,
+suggesting that the gap closed against the full-context oracle is not
+explained by the chunk-cosine baseline alone. With GLM-5.1 the same-reader
+comparison flips ($0.5672$ AKCR vs $0.4311$ oracle on the full $\sim$78K
+book); we treat that flip as a diagnostic of long-context degradation in
+GLM-5.1, not as evidence that retrieval beats full context.
+
+A scoring-rule ablation (HACS, MAR-sum, MAR-lse, ACRP) suggests atom-best
+max-pooling is the strongest reduction among those we tried; alternatives
+degrade or tie within run-to-run noise. Two negative results constrain the
+position: a fully learned typed-edge propagator (LearnRet, APPNP closed-form
+\citep{klein2024appnp}, 16 trainable parameters) drives
+$\mathrm{ppr}_\alpha\!\to\!0.95$ in our single-book candidate pool, reducing
+the propagation update to the dense seed; and feeding atoms themselves to
+the reader plateaus near $0.46$ across four formats and two extractors.
+
+As a separate, deployment-style observation we note that with Claude Opus
+4.7 as the retrieval reader, HACS-AKCR at $b\!=\!24$K reaches
+$0.6721 \pm 0.007$ over three reruns, comparable to the GLM-4.7 full-book
+oracle ($0.6450$). We treat this only as a cross-reader cost-quality data
+point: a stronger reader on $\sim$30\% of the book reaching the same
+judge-acc as a weaker reader on the full book. It is not evidence about
+retrieval vs.\ full context under a matched reader.
+
+\paragraph{Contributions.}
+We (i)~recast AKCR as a graph-foundation tokenization choice rather than a
+RAG pipeline, with explicit graph-node, edge-schema, and bipartite-payload
+descriptions; (ii)~report same-reader retrieval quality and oracle gaps on
+NarrativeQA, where AKCR closes a substantial fraction of the gap to the
+same-reader long-context oracle while not exceeding it when the oracle is
+reliable; (iii)~give a scoring-rule ablation suggesting atom-best
+max-pooling is the strongest reduction in this setting; (iv)~report two
+negative results (learned propagation self-disable, atoms-as-content
+plateau) that constrain when atomic tokenization helps and when graph
+propagation adds value; and (v)~document non-trivial API run-to-run variance
+for LLM-judged QA accuracy ($\mathrm{SD}\!\approx\!5$pp on $n=1169$,
+GLM-5.1 reader), with a recommendation to default to multi-run reporting
+and treat sub-3pp single-run gaps as inconclusive.
+
+\section{The Position}
+\label{sec:position}
+
+\paragraph{Thesis (bounded).} \emph{For long single-document narrative QA,
+our evidence suggests that the choice of graph token is a useful design
+choice to study before adding propagation. In our setting, using atomic
+Davidsonian propositions as ranking keys and source chunks as reader
+payloads, joined by a deterministic source-of map, gives a better
+budget--accuracy trade than chunk-cosine retrieval at the same budget, and
+recovers a substantial fraction of full-context oracle accuracy without
+exceeding it under a matched, well-behaved reader. We do not generalise to
+multi-hop encyclopedic QA, schema-grounded KGQA, or non-narrative long
+documents.}
+
+\paragraph{Why role-decoupling can help here.} A long document of $C$ chunks
+admits two retrieval geometries: one $d$-dimensional vector per chunk
+(chunk-RAG), or roughly $17$ vectors per chunk, one per atomic proposition
+(atom-RAG). Under the former, the chunk's score is the \emph{average} of
+its propositions: one relevant fact buried in twenty unrelated ones is ranked
+at the average. Under the latter, the chunk's score is the \emph{best} of its
+propositions, because we rank atoms and only afterwards collapse to source
+chunks via $\sigma$. The geometry is reminiscent of ColBERT-v2 multi-vector
+retrieval \citep{khattab2022colbertv2}, with the difference that our
+multi-vectors are LLM-emitted Davidsonian propositions (typed by predicate,
+anchored by time and scene), not transformer token vectors.
+
+\paragraph{Why both endpoints can fail.} A chunk is a coarse graph token: it
+averages multiple propositions and discourse roles. A flat atom list is a
+coarse reader payload: decontextualization \citep{choi2021decontext} strips
+the narrative voice the reader composes from. We treat the atom as the
+graph token, the source chunk as the language payload, and $\sigma$ as the
+deterministic bipartite map between them. We do not argue this is the right
+decomposition for graph-to-LLM interfaces in general; we argue it is a
+practical interface choice in the single-document long-context regime, and
+one whose failure cases (atoms-as-content; learned propagation on a
+saturated dense seed) are themselves informative about where graph-side
+operations might add value.
+
+\section{Empirical Evidence}
+\label{sec:empirical}
+
+\subsection{Setup}
+We evaluate on full-book NarrativeQA (40 books, 4{,}929 GLM-4.7-segmented chunks
+of $\sim$800 chars, 1{,}169 questions). Atomic memory is extracted once, query-
+independently, by a 3-pass GLM-4.7 pipeline (DEC-PROP):
+(1)~\textbf{Decontextualize}, replacing pronouns with antecedent surface forms;
+(2)~\textbf{Davidsonian extract}, emitting atomic propositions with explicit
+\texttt{subject}, \texttt{predicate}, \texttt{object}, \texttt{time\_anchor},
+\texttt{scene\_index}, \texttt{salience}, and \texttt{edge\_hints};
+(3)~\textbf{Faithfulness + coverage critic}, dropping hallucinations and adding
+missing atoms. Output: $89{,}575$ atoms (mean $\sim$$17$/chunk),
+$\sim$$1.5\times$ the original chunk char-count, $\sim$24 minutes at 200-way
+concurrency, one-time cost $\sim$\textyen 150.
+
+For each query, AKCR scores atoms against the query using a frozen
+\textsc{bge-m3} encoder, restricted to the source story; takes top-$K$ atoms
+($K=200$); maps each atom to its source chunk; deduplicates while preserving
+atom rank; packs source chunks DOS-sorted by chunk index into the reader's
+character budget. Three readers are evaluated: Claude Opus 4.7, GLM-5.1, and
+GLM-4.7. The judge is GLM-4.7 in pairwise reference-grounded mode.
+
+\subsection{Same-reader retrieval quality and oracle gap}
+\label{sec:headline}\label{sec:samereader}
+
+We organise the empirical evidence into three blocks: (1)~same-reader
+comparisons against the full-context oracle and against a chunk-cosine
+retrieval baseline at matched budget; (2)~a budget sweep against the chunk
+baseline under the GLM-5.1 reader; and (3)~a cross-reader deployment-style
+note. Table~\ref{tab:headline} groups the same-reader rows
+(\textsc{Block~A}) and a chunk-cosine baseline (\textsc{Block~B}); the
+cross-reader observation is summarised in
+\S\ref{sec:crossreader-note} and shown as a separate block
+(\textsc{Block~C}).
+
+\paragraph{Block A: same-reader retrieval vs.\ full-context oracle.}
+At $b\!=\!24{,}000$ chars, $n\!=\!1{,}169$, with GLM-4.7 as both retrieval
+reader and oracle reader, HACS-AKCR scores $0.5543$ versus a $0.6450$
+full-book oracle: a gap of $-9.07$pp. On the $n\!=\!149$ subset where we
+also have an Opus 4.7 oracle, AKCR scores $0.7338$ versus $0.8322$, a gap
+of $-9.84$pp. We do not claim AKCR closes this gap; it does not. AKCR
+recovers a fraction of full-context performance (about $86\%$ of GLM-4.7
+oracle, about $88\%$ of Opus oracle on that subset) at $\sim$30\% of the
+input cost. With the GLM-5.1 reader, the same-reader comparison reverses
+($0.5672$ AKCR at 24K vs $0.4311$ oracle at 78K), but we treat this as
+diagnostic of long-context degradation in GLM-5.1 (consistent with
+lost-in-the-middle behaviour, \citealt{liu2024lostinmiddle}), not as
+evidence that AKCR exceeds full context under a well-behaved reader.
+
+\paragraph{Block B: same-reader retrieval vs.\ chunk-cosine retrieval.}
+At the same $b\!=\!24$K budget, the chunk-cosine retrieval baseline
+(DOS+chunks: rank chunks by $\cos(q,c)$, pack into the budget) under
+GLM-4.7 scores $0.5227$, below the AKCR same-reader score of $0.5543$
+(within run-to-run variance characterised in \S\ref{sec:variance}). Under
+GLM-5.1, an AKCR v1 multi-run sample (four reruns, mean
+$0.5552\!\pm\!0.053$) is consistent with, but not strictly above, the
+single-run DOS+chunks number ($0.5389$). We therefore claim a same-reader
+retrieval improvement at GLM-4.7, and a same-reader retrieval result that is
+above or at parity with chunk-cosine at GLM-5.1 within noise; we do not
+overclaim a robust same-reader win at GLM-5.1.
+
+\begin{table}[t]
+  \caption{Empirical results on full-book NarrativeQA, $b=24{,}000$ chars,
+    $n=1{,}169$ unless noted. \textsc{Block~A} reports same-reader retrieval
+    vs.\ full-context oracle; \textsc{Block~B} reports same-reader AKCR vs.\
+    chunk-cosine retrieval at the same budget; \textsc{Block~C} is the
+    cross-reader deployment note (\S\ref{sec:crossreader-note}). Same-reader
+    AKCR remains below the same-reader oracle when the oracle is reliable
+    (GLM-4.7, Opus); the GLM-5.1 oracle row is marked as diagnostic since
+    it is degraded by long-context behaviour at 78K chars. ``$\pm$'' is the
+    standard deviation across reruns where reported.}
+  \label{tab:headline}
+  \vskip 0.05in
+  \centering
+  \small
+  \begin{tabular}{@{}llcr@{}}
+    \toprule
+    Method & Reader & judge\_acc & gap to same-reader oracle \\
+    \midrule
+    \multicolumn{4}{l}{\textsc{Block A: same-reader retrieval vs.\ full-context oracle}} \\
+    Long-context oracle (78K)        & GLM-4.7 & $0.6450$           & --- \\
+    HACS-AKCR ($\alpha\!=\!0.8$, 24K) & GLM-4.7 & $0.5543$           & $-9.07$pp \\
+    Long-context oracle (78K, $n\!=\!149$ subset) & Opus 4.7 & $0.8322$ & --- \\
+    HACS-AKCR (24K, $n\!=\!149$ subset)            & Opus 4.7 & $0.7338$ & $-9.84$pp \\
+    Long-context oracle (78K) \emph{(diagnostic)}   & GLM-5.1 & $0.4311$           & --- \\
+    AKCR v1 (24K, 4-rerun mean)       & GLM-5.1 & $0.5552 \pm 0.053$ & $+12.4$pp\,$\dagger$ \\
+    \midrule
+    \multicolumn{4}{l}{\textsc{Block B: same-reader retrieval vs.\ chunk-cosine baseline}} \\
+    DOS+chunks (chunk-cosine, 24K)    & GLM-4.7 & $0.5227$           & --- \\
+    HACS-AKCR ($\alpha\!=\!0.8$, 24K) & GLM-4.7 & $0.5543$           & --- \\
+    DOS+chunks (24K)                  & GLM-5.1 & $0.5389$           & --- \\
+    AKCR v1 (24K, 4-rerun mean)       & GLM-5.1 & $0.5552 \pm 0.053$ & --- \\
+    Atoms-as-content (GAR V013, 24K)  & GLM-5.1 & $0.4594$           & --- \\
+    \midrule
+    \multicolumn{4}{l}{\textsc{Block C: cross-reader deployment observation}} \\
+    HACS-AKCR (24K, 3 reruns)          & Opus 4.7 & $0.6721 \pm 0.007$ & --- \\
+    Long-context oracle (78K)          & GLM-4.7  & $0.6450$           & --- \\
+    \bottomrule
+  \end{tabular}
+
+  \medskip
+  \footnotesize
+  $\dagger$~\emph{Diagnostic only}: we read AKCR (24K) above the GLM-5.1
+  full-context oracle (78K) as a reflection of long-context degradation in
+  GLM-5.1, not as a retrieval-vs-context win.
+\end{table}
+
+\paragraph{Block~C: cross-reader deployment observation.}
+\label{sec:crossreader-note}
+With Claude Opus 4.7 as retrieval reader, HACS-AKCR at $b\!=\!24$K reaches
+$0.6721 \pm 0.007$ over three reruns. The GLM-4.7 long-context oracle on
+the full $\sim$78K-char book scores $0.6450$. We report this only as a
+deployment-style data point: a stronger reader on $\sim$30\% of the book
+producing comparable judge accuracy to a weaker reader on the full book.
+It is not evidence about retrieval vs.\ full context under a matched reader,
+and we do not treat it as a primary scientific claim. We further caution
+that this observation depends on the relative reading capability of Opus
+4.7 vs.\ GLM-4.7 on this benchmark; with a different reader pair, the
+direction can plausibly invert.
+
+\paragraph{Pareto across budgets.} On a single-run budget sweep
+($b\!\in\!\{2,4,8,12,16,24\}$K chars, GLM-5.1 reader), AKCR v1 was above
+DOS+chunks at five of six budgets, with the largest gap $+8.3$pp at
+$b\!=\!12$K and a tie at $b\!=\!8$K. The associated single-run
+paired-bootstrap $P$-values look strong, but because the underlying
+run-to-run dispersion (\S\ref{sec:variance}) is comparable to a few of these
+gaps we treat the qualitative ordering, not the per-budget significance,
+as the take-away.
+
+\paragraph{Cost note.} DEC-PROP extraction is a one-time corpus-side cost
+($\sim$\textyen 150 for $4{,}929$ chunks at our concurrency setting);
+\textsc{bge-m3} encoding runs on Apple MPS; per-query retrieval is a CPU
+dense matmul.
+
+\subsection{Scoring-rule ablation}
+\label{sec:ablation}
+The atom-keyed retrieval admits a family of chunk-scoring rules. Define the
+top-$K$ atom set $T_q$ for query $q$ and let $s(t)\!=\!\cos(q,t)$ be the dense
+atom-query score. We compare:
+(i)~\textbf{v1}, atom-best: rank chunks by their highest-scoring atom in $T_q$;
+(ii)~\textbf{MAR-sum}: chunk score $=\!\sum_{t \in c, t \in T_q} s(t)$;
+(iii)~\textbf{MAR-lse} ($\tau\!=\!5$): log-sum-exp of in-chunk top-$K$ atom scores;
+(iv)~\textbf{HACS} ($\alpha$): $\alpha \cdot \max_{t\in c}s(t) + (1\!-\!\alpha)\cdot\cos(q,c)$;
+(v)~\textbf{ACRP}: same chunks as v1, but the top-15 atoms are also prepended
+to the reader prompt as ``key facts.''
+Table~\ref{tab:ablation} reports paired-bootstrap deltas vs a fresh v1 rerun
+($n\!=\!1{,}169$, GLM-5.1 reader, $b\!=\!24{,}000$).
+
+\begin{table}[t]
+  \caption{Scoring-rule ablation: paired bootstrap vs v1 rerun~\#2 (May~8;
+    $n\!=\!1{,}169$, GLM-5.1 reader). HACS $\alpha\!=\!0.8$ ties v1 within
+    noise; alternatives degrade or tie. ACRP regresses ($-7.3$pp) because
+    atoms-as-pointer pulls the reader toward atoms-as-content failure.}
+  \label{tab:ablation}
+  \vskip 0.05in
+  \centering
+  \small
+  \begin{tabular}{@{}lcccr@{}}
+    \toprule
+    Rule & judge\_acc & $\Delta$pp & 95\% CI & $P(>v1)$ \\
+    \midrule
+    v1 ($\alpha\!=\!1.0$) & $0.5595$ & --- & --- & --- \\
+    HACS $\alpha\!=\!0.8$ & $0.5672$ & $+0.77$ & $[-1.71,+3.25]$ & $0.72$ \\
+    HACS $\alpha\!=\!0.7$ & $0.5423$ & $-1.71$ & $[-4.28,+0.77]$ & $0.08$ \\
+    MAR-sum & $0.5458$ & $-1.37$ & $[-3.93,+1.11]$ & $0.13$ \\
+    MAR-lse $\tau\!=\!5$ & $0.5355$ & $-2.40$ & $[-4.96,+0.17]$ & $0.03$ \\
+    ACRP $K_{\mathrm{kf}}\!=\!15$ & $0.4867$ & $-7.27$ & $[-10.0,-4.62]$ & $0.000$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\paragraph{Reading the ablation.} In our setting, HACS $\alpha\!=\!0.8$ ties v1
+(within run-to-run noise; \S\ref{sec:variance}); HACS $\alpha\!=\!0.7$, MAR-sum,
+and MAR-lse all degrade weakly. ACRP regresses sharply: prepending atoms to
+the reader prompt appears to induce an atoms-as-content failure mode (the
+reader tends to paraphrase the atom list rather than synthesise from the
+chunks). Among the rules we tried, atom-best max-pooling is the only
+reduction that consistently survives. We do not claim it is uniquely optimal
+in general; it is the rule we keep recommending in this single-document setup
+until counter-evidence appears. HACS $\alpha\!=\!0.8$ is also the variant
+that drives the cross-reader headline in Table~\ref{tab:headline}: the
+$20\%$ chunk-cosine bonus appears to recover scene-/discourse-level
+context without breaking the atom-dominated ranking.
+
+\subsection{Robustness and variance-aware interpretation}
+\label{sec:variance}
+
+Across all numbers in Table~\ref{tab:headline} we apply the following
+interpretation rules.
+
+\textbf{(1)~Run-to-run variance.} Four identical-configuration AKCR v1 reruns
+($n\!=\!1{,}169$, $b\!=\!24$K, \texttt{temperature=0}, GLM-5.1 reader) gave
+judge\_acc $\in\!\{0.5997,0.5595,0.5825,0.4790\}$, mean
+$0.5552\!\pm\!0.053$, range $0.121$. Single-run paired-bootstrap confidence
+intervals are tighter than this dispersion, so we report multi-run means
+where feasible and treat sub-3pp single-run gaps as inconclusive.
+
+\textbf{(2)~Comparison to chunk baseline across budgets.} On the GLM-5.1
+budget sweep, AKCR v1 was above DOS+chunks at five of six budgets. Several
+of those gaps are within run-to-run noise; we therefore make a qualitative
+claim (AKCR is at least at parity with chunk-cosine across budgets), not a
+strong significance claim per budget.
+
+\textbf{(3)~Oracle-gap retention.} Defining
+$\mathrm{retained\_oracle\_fraction} =
+\mathrm{AKCR_{24K}} / \mathrm{Oracle_{78K}}$ under a matched reader, we
+obtain $\sim$$0.5543/0.6450\!\approx\!0.86$ for GLM-4.7 and
+$\sim$$0.7338/0.8322\!\approx\!0.88$ for Opus on the $n\!=\!149$ subset,
+i.e., AKCR retains roughly $86\%$--$88\%$ of full-context accuracy at
+$\sim$$30\%$ of input chars. Defining
+$\mathrm{gap\_closed\_vs\_chunk} = (\mathrm{AKCR_{24K}}\!-\!\mathrm{Chunk_{24K}})
+/ (\mathrm{Oracle_{78K}}\!-\!\mathrm{Chunk_{24K}})$, we obtain at GLM-4.7
+roughly $(0.5543\!-\!0.5227)/(0.6450\!-\!0.5227)\!\approx\!0.26$, i.e.,
+AKCR at the matched 24K budget closes about a quarter of the gap between
+chunk-cosine retrieval and the full-context oracle. Both ratios are
+budget- and reader-dependent and we report them as descriptive metrics, not
+as headline numbers. (\textsc{TODO}: same diagnostic at additional budgets
+with paired reruns; not yet locked.)
+
+\textbf{(4)~GLM-5.1 oracle is diagnostic.} We mark the GLM-5.1 full-context
+oracle row in Table~\ref{tab:headline} as diagnostic: at 78K-char inputs
+the GLM-5.1 oracle is degraded relative to GLM-4.7 in a manner consistent
+with long-context behaviour reported in the literature
+\citep{liu2024lostinmiddle}. Same-reader AKCR exceeding the GLM-5.1 oracle
+should not be read as a general retrieval-vs-context result.
+
+\textbf{(5)~Negative effect sizes.} The two negatives in
+\S\ref{sec:negatives} have effect sizes ($|\Delta|\!\geq\!2.4$pp on the
+relevant comparisons) larger than the per-run dispersion above, and the
+LearnRet $\mathrm{ppr}_\alpha\!\to\!0.95$ result is structural rather than
+a bootstrap effect.
+
+\section{Lessons from Negatives}
+\label{sec:negatives}
+
+We report two negative results that together bound the position. Both are
+negative outcomes for design choices a graph-foundation pipeline might try
+first; we read them as constraints on \emph{when} graph-side propagation or
+graph-side payloads add value, not as evidence against propagation in
+general.
+
+\subsection{Learned propagation self-disables on saturated single-book seeds}
+We built a typed multi-edge graph over atoms (entity overlap, shared subject,
+scene index, and edge-hint relations) and ran Personalized PageRank with
+hand-tuned weights. Hand-tuned PPR lost $3.7$pp F1@15 vs.\ dense-only on the
+same retrieval target. We then made all 16 graph hyperparameters trainable
+as \texttt{nn.Parameter}, used the APPNP closed-form solve
+\citep{klein2024appnp}, and trained with a multi-positive InfoNCE loss
+(LearnRet). The optimizer drove $\mathrm{ppr}_\alpha\!\to\!0.95\!\pm\!0.01$,
+which makes the propagation update reduce, in the limit, to the dense seed.
+A natural interpretation is that the dense atom seed is already sufficient
+when the candidate pool is restricted to a single book of $\sim$$5{,}000$
+chunks: the structured graph adds little that the seed has not already
+captured. We do not claim propagation is useless in general; multi-hop
+encyclopedic QA, multi-document settings, and schema-grounded KGQA may
+differ. We claim that, in this single-book regime with this edge typology,
+the learned propagator did not find a non-trivial use of the graph.
+
+\subsection{Atoms-as-content caps at $0.46$ regardless of format}
+We tested four atom-feed-to-reader variants:
+flat bullet list of V010 atoms, $0.307$ at GLM-4.7;
+GAR V010 (graph format with edges), $0.458$ at GLM-5.1;
+GAR V012 (richer extraction with verbatim sources and typed edges), $0.458$;
+GAR V013 (verbatim source as displayed text plus modality annotations),
+$0.459$. None breaks the $0.46$ ceiling. Stronger extractors do not change the
+ceiling: V010 (GLM-4.7 extractor, mean lexical recall $0.859$), V011 (GLM-5.1
+extractor, $0.895$), V012 (GLM-5.1 with verbatim+edges+modality, more
+selective). The bottleneck is not extraction quality; it is that decontextualized
+propositions lose the narrative voice the reader needs to compose answers.
+Hybrid retrieval (atoms + chunks + summaries) at $b=24{,}000$ scores $0.519$;
+adding RAPTOR cluster summaries does not exceed $0.431$ at $b=16{,}000$. None
+of these break $0.6$.
+
+\section{Discussion}
+\label{sec:discussion}
+
+\paragraph{One-paragraph summary.} In our setup, once the graph token is
+fine-grained enough that a single dense atom seed concentrates probability
+mass on the answer region, a learned propagator over typed atom edges did
+not find a non-trivial use of the graph, and feeding atoms directly to the
+reader hurt rather than helped. We read this as evidence that, in this
+regime, the choice of graph token is worth studying before adding a
+propagation operator -- not as a claim that propagation is unhelpful in
+general.
+
+\paragraph{Where this position is bounded.} Our results are restricted to
+long-document QA over narrative and semi-narrative text in NarrativeQA. We
+do not claim the position generalises to multi-hop encyclopedic QA
+(e.g., HotpotQA, MuSiQue), where edge traversal can connect facts no single
+chunk contains; to schema-grounded KGQA; or to non-narrative long documents
+(legal, scientific, code). Each is a candidate stress test and a candidate
+falsifier. In particular, distractor-heavy multi-hop benchmarks such as
+HotpotQA are a natural future stress test for AKCR: when distractor
+paragraphs are crafted to share entities with the query, a max-pool over
+atom cosines is no longer obviously the right ranking signal, since
+high-similarity atoms may come from distractors. We frame that as a
+hypothesis to be tested, not as a reported result of this paper.
+
+\paragraph{Open questions for the GFM community.}
+(i)~\emph{What is the right tokenization granularity, and how should it
+scale with document length?} Atomic propositions work in our setup;
+sub-atomic fragments may overshoot. A document-length-dependent
+``atoms-per-chunk'' study, with consistent extraction quality, would be
+useful.
+(ii)~\emph{When does graph propagation add value on top of a strong dense
+atomic seed?} Our learned propagator self-disabling is a falsification
+signal, not a general refutation; multi-hop, multi-document, or
+sparse-coverage regimes are the natural places to look for the boundary.
+
+\section{Limitations}
+We evaluate on a single benchmark family (NarrativeQA full-book) and three
+commercial/API readers (GLM-4.7, GLM-5.1, Claude Opus 4.7); the
+generalisation in \S\ref{sec:discussion} remains a hypothesis until tested
+on multi-hop QA, schema-grounded KGQA, and non-narrative long documents.
+Our negative result on learned propagation is specific to a single-book
+candidate pool, this particular edge typology, and our APPNP-style
+parameterisation; a different graph construction or a multi-document pool
+may reach a different conclusion. The DEC-PROP extractor is itself an LLM
+and inherits LLM extraction artifacts; we mitigate with a
+coverage-and-faithfulness critic pass but cannot guarantee zero hallucinated
+or missed atoms. The judge is GLM-4.7; we use a shared judge across all
+conditions to control for judge bias, but the absolute number $0.6450$ is
+judge-conditional and should not be compared directly to NarrativeQA scores
+in prior work using a different judge. Finally, our reader pool is
+predominantly commercial-API; a similar evaluation with open-weight readers
+(e.g., Llama or Qwen-class models) and a wider variance budget is a
+necessary check we have not yet done.
+
+\section*{Declaration on LLM Use}
+LLMs are used as pipeline components: \textbf{GLM-4.7} for DEC-PROP atomic
+extraction (3 passes), as one of three reader configurations, and as the
+shared pairwise reference-grounded judge across all conditions; \textbf{GLM-5.1}
+as a second reader configuration and as an alternative extractor in
+ablation variants (not as judge); \textbf{Claude Opus 4.7} as the third
+reader configuration. All three are commercial/API models accessed during
+the experimental period. The authors used automated tools for copy-editing
+and LaTeX formatting assistance. All experiments, numerical results,
+tables, claims, and interpretations were verified by the authors and
+remain their responsibility.
+
+% \section*{Acknowledgements}
+% Acknowledgements omitted for double-blind review.
+
+% Ensure all references are emitted in the bibliography even when not
+% cited inline. Keep citation-key list in sync with references.bib.
+\nocite{khattab2022colbertv2,choi2021decontext,davidson1967logical,
+  edge2024graphrag,gutierrez2024hipporag,sarthi2024raptor,klein2024appnp,
+  karpukhin2020dpr,kovcisky2018narrativeqa,liu2024lostinmiddle,
+  xiao2023bgem3,reimers2019sentencebert}
+
+\bibliographystyle{icml2026}
+\bibliography{references}
+
+\end{document}

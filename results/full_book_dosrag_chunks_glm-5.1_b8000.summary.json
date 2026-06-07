@@ -1,0 +1,14 @@
+{
+  "method": "DOS+chunks_reader-glm-5.1",
+  "reader": "glm-5.1",
+  "judge": "glm-4.7",
+  "char_budget": 8000,
+  "n_total": 1169,
+  "n_yes": 465,
+  "judge_acc": 0.397775876817793,
+  "avg_f1": 0.14914748403554304,
+  "avg_facts_chars": 7874.396065012831,
+  "tokens_total_reader": 2458094,
+  "tokens_total_judge": 91727,
+  "duration_sec": 521.3701241016388
+}

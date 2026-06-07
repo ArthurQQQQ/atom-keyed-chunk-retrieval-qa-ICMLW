@@ -1,0 +1,15 @@
+{
+  "method": "AKCR-reader_glm-4.7",
+  "atom_source": "data/narrativeqa/processed_v010_full/nodes_v010_full_book.jsonl",
+  "reader": "glm-4.7",
+  "judge": "glm-4.7",
+  "char_budget": 2000,
+  "K_atoms": 200,
+  "n_total": 1067,
+  "n_yes": 249,
+  "judge_acc": 0.23336457357075913,
+  "avg_f1": 0.144354677423416,
+  "avg_passages_chars": 1769.6251171508904,
+  "avg_n_chunks": 2.650421743205248,
+  "duration_sec": 584.6054410934448
+}
