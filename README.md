@@ -28,19 +28,16 @@ vs. precision of the packed context.
 ## Install
 
 ```bash
-pip install numpy httpx
+pip install -r requirements.txt
 ```
 
 The reader and judge are called over an HTTP API (GLM-4.7 by default; an
 OpenAI-style endpoint is also supported for the cross-reader slice). Set
-credentials via environment variables or a local `.env` (git-ignored):
+credentials via environment variables or a local `.env` (git-ignored). Start
+from the template:
 
-```
-GLM_URL=...
-GLM_API_KEY=...
-# optional OpenAI-style endpoint for cross-reader runs:
-OPENAI_URL=...
-OPENAI_API_KEY=...
+```bash
+cp .env.example .env
 ```
 
 ## Run

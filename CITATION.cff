@@ -1,0 +1,15 @@
+cff-version: 1.2.0
+message: "If you use this code, please cite this repository."
+title: "Atom-Keyed Chunk Retrieval (AKCR): long-document QA retrieval pipeline"
+authors:
+  - name: "ArthurJQ"
+repository-code: "https://github.com/ArthurQQQQ/atom-keyed-chunk-retrieval-qa-ICMLW"
+date-released: "2026-06-07"
+license: "MIT"
+keywords:
+  - "long-document question answering"
+  - "retrieval"
+  - "memory"
+  - "RAG"
+  - "atom-keyed chunk retrieval"
+  - "ICMLW"
