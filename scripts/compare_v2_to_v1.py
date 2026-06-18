@@ -11,8 +11,8 @@ import json
 from pathlib import Path
 import numpy as np
 
-REPO = Path(__file__).resolve().parent.parent.parent
-B = REPO / "data" / "eval" / "baselines"
+REPO = Path(__file__).resolve().parents[1]
+B = REPO / "results"
 
 
 def load_yes(path):

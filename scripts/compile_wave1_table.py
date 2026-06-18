@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """compile_wave1_table.py
-Auto-load every NarrativeQA full_book .summary.json under data/eval/baselines/,
+Auto-load every NarrativeQA full_book .summary.json under results/,
 classify by (method, reader, char_budget), and produce a unified table for the
 Wave 1 checkpoint and the paper.
 
@@ -11,8 +11,8 @@ from __future__ import annotations
 import argparse, json, re, statistics
 from pathlib import Path
 
-REPO = Path("/Users/arthurqiu/MemoryNet")
-BASELINES = REPO / "data/eval/baselines"
+REPO = Path(__file__).resolve().parents[1]
+BASELINES = REPO / "results"
 
 # Patterns to identify methods; first match wins
 METHOD_PATTERNS = [

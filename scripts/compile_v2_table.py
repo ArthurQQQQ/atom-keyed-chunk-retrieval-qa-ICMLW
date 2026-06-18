@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """Compile the final v2 ablation table for the revised paper.
 
-Reads all summary.json files in data/eval/baselines/ and produces a single
-markdown table with paired bootstrap vs new-script v1 baseline.
+Reads local results files and produces a single markdown table with paired
+bootstrap vs new-script v1 baseline.
 """
 from __future__ import annotations
 import json
 from pathlib import Path
 import numpy as np
 
-REPO = Path(__file__).resolve().parent.parent.parent
-B = REPO / "data" / "eval" / "baselines"
+REPO = Path(__file__).resolve().parents[1]
+B = REPO / "results"
 
 
 def load_yes(path):

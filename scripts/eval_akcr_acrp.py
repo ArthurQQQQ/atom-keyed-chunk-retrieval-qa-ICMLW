@@ -19,7 +19,16 @@ from pathlib import Path
 import numpy as np
 import httpx
 
-REPO = Path(__file__).resolve().parent.parent.parent
+REPO = Path(__file__).resolve().parents[1]
+if not (REPO / "data/narrativeqa/processed_v010_full/qa_full.jsonl").exists():
+    _candidates = []
+    if os.environ.get("MEMORYNET_REPO"):
+        _candidates.append(Path(os.environ["MEMORYNET_REPO"]))
+    _candidates.append(Path.home() / "MemoryNet")
+    for _c in _candidates:
+        if (_c / "data/narrativeqa/processed_v010_full/qa_full.jsonl").exists():
+            REPO = _c
+            break
 
 
 def load_dotenv():

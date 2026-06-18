@@ -3,12 +3,12 @@
 # Each run takes ~8 min at concurrency=24.
 
 set -e
-cd "$(dirname "$0")/../.."
+cd "$(dirname "$0")/.."
 
-PY=/opt/anaconda3/bin/python3
-SCRIPT=scripts/v3/eval_akcr_v2.py
+PY=${PYTHON:-python3}
+SCRIPT=scripts/eval_akcr_v2.py
 COMMON="--reader-model glm-5.1 --judge-model glm-4.7 --char-budget 24000 --K-atoms 200 --concurrency 24"
-OUTDIR=data/eval/baselines
+OUTDIR=${OUTDIR:-results}
 
 mkdir -p logs
 
